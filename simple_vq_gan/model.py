@@ -13,16 +13,16 @@ class Quantize(nn.Module):
         pass
 
 class Residual(nn.Module):
-    def __init__(self, residual):
+    def __init__(self, residuals: Sequential[Any]):
         """
-        In the constructor we stash way the module that'll be called along
+        In the constructor we stash way the modules that'll be called along
         the residual branch. This is just for convenience.
         """
         super(Residual, self).__init__()
-        self.residual = residual
+        self.residuals = residuals
 
     def forward(self, x):
-        return x + self.residual(x)
+        return x + sum(residual(x) for residual in self.residuals)
 
 class Rotary(nn.Module):
     def __init__(self):

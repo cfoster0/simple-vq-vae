@@ -19,8 +19,15 @@ class Residual(nn.Module):
     def forward(self, x):
         pass
 
-class Block(nn.Module):
+class Rotary(nn.Module):
     def __init__(self):
+        pass
+
+    def forward(self, x):
+        pass
+
+class Block(nn.Module):
+    def __init__(self, compression: int = 1, decompression: int = 1):
         pass
 
     def forward(self, x):
@@ -28,6 +35,7 @@ class Block(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, compression: Sequence[int]):
+        assert len(compression) <= 3, "Only inputs up to 3D are supported"
         pass
 
     def forward(self, x):
@@ -35,6 +43,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(self, decompression: Sequence[int]):
+        assert len(decompression) <= 3, "Only outputs up to 3D are supported"
         pass
 
     def forward(self, x):

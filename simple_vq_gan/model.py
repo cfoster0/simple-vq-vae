@@ -48,6 +48,7 @@ class Block(nn.Module):
 
     def forward(self, x):
         # This function needs some work to make it agnostic to dimension
+        x = x.transpose(self.axis, -2)
         x = self.ln(x)
         x = self.in_proj(x)
         q, k, v = torch.split(x, [
@@ -63,6 +64,7 @@ class Block(nn.Module):
         o = einsum("... h i j, ... j h d -> ... i h d", a, v)
         o = rearrange(o, "... h d -> ... (h d)")
         x = self.out_proj(o)
+        x = x.transpose(self.axis, -2)
         return x
 
 class Encoder(nn.Module):

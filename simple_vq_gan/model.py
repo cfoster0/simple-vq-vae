@@ -27,11 +27,37 @@ class Rotary(nn.Module):
         pass
 
 class Block(nn.Module):
-    def __init__(self, compression: int = 1, decompression: int = 1):
-        pass
+    def __init__(self, compression: int = 1, decompression: int = 1, axis: int = 1):
+        super(Block, self).__init__()
+        self.heads = config.heads
+        self.head_dim = config.head_dim
+        self.hidden_dim = self.heads * self.head_dim
+        self.compression = compression
+        self.decompression = decompression 
+
+        self.ln = nn.LayerNorm(self.hidden_dim)
+        self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 3, False)
+        self.out_proj = nn.Linear(self.hidden_dim, self.hidden_dim, True)
+        self.rotary = Rotary()
 
     def forward(self, x):
-        pass
+        # This function needs some work to make it agnostic to dimension
+        x = self.ln(x)
+        x = self.in_proj(x)
+        q, k, v = torch.split(x, [
+                                   self.hidden_dim,
+                                   self.hidden_dim,
+                                   self.hidden_dim,
+                                   ], -1)
+        (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
+        # Use ConvNd to compress or decompress kv
+        (q, k) = map(lambda x: self.rotary(x), (q, k))
+        a = einsum("b i h d, b j h d -> b h i j", q, k) * (self.head_dim ** -0.5)
+        a = F.softmax(a, dim=-1)
+        o = einsum("b h i j, b j h d -> b i h d", a, v)
+        o = rearrange(o, "... h d -> ... (h d)")
+        x = self.out_proj(o)
+        return x
 
 class Encoder(nn.Module):
     def __init__(self, compression: Sequence[int]):

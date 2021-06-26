@@ -47,7 +47,6 @@ class Block(nn.Module):
 
     def forward(self, x):
         # This function needs some work to make it agnostic to dimension
-        x = x.transpose(self.axis, -2)
         x = self.ln(x)
         x = self.in_proj(x)
         q, k, v = torch.split(x, [
@@ -57,13 +56,14 @@ class Block(nn.Module):
                                    ], -1)
         (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
         (k, v) = map(lambda x: F.interpolate(x, scale_factor=self.compression), (k, v))
+        (q, k, v) = map(lambda x: x.transpose(self.axis, -2), (q, k, v))
         (q, k) = map(lambda x: self.rotary(x), (q, k))
         a = einsum("... i h d, ... j h d -> ... h i j", q, k) * (self.head_dim ** -0.5)
         a = F.softmax(a, dim=-1)
         o = einsum("... h i j, ... j h d -> ... i h d", a, v)
         o = rearrange(o, "... h d -> ... (h d)")
+        o = o.transpose(self.axis, -2)
         x = self.out_proj(o)
-        x = x.transpose(self.axis, -2)
         return x
 
 class Encoder(nn.Module):

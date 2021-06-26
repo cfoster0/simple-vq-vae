@@ -54,9 +54,9 @@ class Block(nn.Module):
                                    self.hidden_dim,
                                    self.hidden_dim,
                                    ], -1)
-        (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
         (k, v) = map(lambda x: F.interpolate(x, scale_factor=self.compression), (k, v))
         (q, k, v) = map(lambda x: x.transpose(self.axis, -2), (q, k, v))
+        (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
         (q, k) = map(lambda x: self.rotary(x), (q, k))
         a = einsum("... i h d, ... j h d -> ... h i j", q, k) * (self.head_dim ** -0.5)
         a = F.softmax(a, dim=-1)

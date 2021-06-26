@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import Sequence, Optional, Tuple
+from typing import Sequence, Optional, Tuple, Any
 from einops import rearrange, repeat, reduce
 
 class Quantize(nn.Module):

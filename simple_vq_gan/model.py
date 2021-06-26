@@ -32,14 +32,13 @@ class Rotary(nn.Module):
         pass
 
 class Block(nn.Module):
-    def __init__(self, rank: int, compression: int = 1, decompression: int = 1, axis: int = 1):
+    def __init__(self, rank: int, compression: int = 1, axis: int = 1):
         super(Block, self).__init__()
         self.heads = config.heads
         self.head_dim = config.head_dim
         self.hidden_dim = self.heads * self.head_dim
         self.rank = rank
         self.compression = compression
-        self.decompression = decompression 
 
         self.ln = nn.LayerNorm(self.hidden_dim)
         self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 3, False)
@@ -57,6 +56,7 @@ class Block(nn.Module):
                                    self.hidden_dim,
                                    ], -1)
         (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
+        (k, v) = map(lambda x: F.interpolate(x, scale_factor=self.compression), (k, v))
         # Use ConvNd to compress or decompress kv
         (q, k) = map(lambda x: self.rotary(x), (q, k))
         a = einsum("... i h d, ... j h d -> ... h i j", q, k) * (self.head_dim ** -0.5)

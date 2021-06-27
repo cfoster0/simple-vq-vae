@@ -51,11 +51,6 @@ class Rotary(nn.Module):
         inv_freq = 1. / torch.logspace(1.0, 100.0, self.dim // 2)
         self.register_buffer('inv_freq', inv_freq)
         
-    def rotate_half(self, x):
-        x = rearrange(x, '... (j d) -> ... j d', j = 2)
-        x1, x2 = x.unbind(dim = -2)
-        return torch.cat((-x2, x1), dim = -1)
-
     def forward(self, x):
         l = x.shape[-2]
         t = torch.linspace(-1, 1, l).type_as(self.inv_freq)

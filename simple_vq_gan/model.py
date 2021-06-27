@@ -61,7 +61,11 @@ class Rotary(nn.Module):
         t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
         freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
         posemb = rearrange(torch.cat((freqs, freqs), dim=-1), 'n d -> () n () d')
-        return (x * posemb.cos()) + (self.rotate_half(x) * posemb.sin())
+        
+        odds, evens = rearrange(x, '... (j d) -> ... j d', j = 2).unbind(dim = -2)
+        rotated = torch.cat((-evens, odds), dim = -1)
+
+        return (x * posemb.cos()) + (rotated * posemb.sin())
 
 class Block(nn.Module):
     def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[int], axis: int = 1):

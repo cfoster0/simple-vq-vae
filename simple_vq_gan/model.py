@@ -33,16 +33,16 @@ class Quantization(nn.Module):
         return quantized
 
 class Residual(nn.Module):
-    def __init__(self, residuals: Sequential[Any]):
+    def __init__(self, fns: Sequential[Any]):
         """
         In the constructor we stash way the modules that'll be called along
         the residual branch. This is just for convenience.
         """
         super().__init__()
-        self.residuals = residuals
+        self.fns = fns
 
     def forward(self, x):
-        return x + sum(residual(x) for residual in self.residuals)
+        return x + sum(fn(x) for fn in self.fns)
 
 class Rotary(nn.Module):
     def __init__(self):

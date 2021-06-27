@@ -61,7 +61,7 @@ class Rotary(nn.Module):
         return out
 
 class Block(nn.Module):
-    def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[int], axis: int = 1):
+    def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[float], axis: int = 1):
         super().__init__()
         self.heads = heads
         self.head_dim = head_dim
@@ -102,7 +102,7 @@ class Encoder(nn.Module):
         assert rank <= 3, "Only 1D, 2D, and 3D are supported"
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
-        compressions = [] # Set compressions based on desired sizes
+        compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
         self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
@@ -113,7 +113,7 @@ class Decoder(nn.Module):
         assert rank <= 3, "Only 1D, 2D, and 3D are supported"
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
-        compressions = [] # Set compressions based on desired sizes
+        compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
         self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):

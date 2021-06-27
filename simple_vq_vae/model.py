@@ -98,21 +98,23 @@ class Block(nn.Module):
         return x
 
 class Encoder(nn.Module):
-    def __init__(self, depth: int, rank: int, compression: Sequence[int]):
-        assert len(compression) <= 3, "Only inputs up to 3D are supported"
+    def __init__(self, rank: int, sizes: Sequence[Sequence[int]]):
+        assert rank <= 3, "Only 1D, 2D, and 3D are supported"
+        assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
-        scales = [compression for depth in range(depth)] # This will not work. Need a strategy
-        self.net = nn.Sequential([Residual([Block(8, 64, scale, axis=j) for j in range(rank)]) for (i, scale) in enumerate(scales)])
+        compressions = [] # Set compressions based on desired sizes
+        self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)
 
 class Decoder(nn.Module):
-    def __init__(self, depth: int, rank: int, decompression: Sequence[int]):
-        assert len(decompression) <= 3, "Only outputs up to 3D are supported"
+    def __init__(self, rank: int, sizes: Sequence[Sequence[int]]):
+        assert rank <= 3, "Only 1D, 2D, and 3D are supported"
+        assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
-        scales = [decompression for depth in range(depth)] # This will not work. Need a strategy
-        self.net = nn.Sequential([Residual([Block(8, 64, scale, axis=j) for j in range(rank)]) for (i, scale) in enumerate(scales)])
+        compressions = [] # Set compressions based on desired sizes
+        self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)

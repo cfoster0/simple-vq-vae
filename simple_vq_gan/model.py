@@ -55,9 +55,9 @@ class Rotary(nn.Module):
         l = x.shape[-3] # [... sequence, head, dim]
         t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
         freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
-        posemb = rearrange(torch.cat((freqs, freqs), dim=-1), 'n d -> () n () d')
+        posemb = repeat(freqs, "n c -> () n () 2 c")
         
-        odds, evens = rearrange(x, '... (j d) -> ... j d', j = 2).unbind(dim = -2)
+        odds, evens = rearrange(x, '... (j c) -> ... j c', j = 2).unbind(dim = -2)
         rotated = torch.cat((-evens, odds), dim = -1)
 
         return (x * posemb.cos()) + (rotated * posemb.sin())

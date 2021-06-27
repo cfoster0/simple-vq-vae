@@ -45,10 +45,9 @@ class Residual(nn.Module):
         return x + sum(fn(x) for fn in self.fns)
 
 class Rotary(nn.Module):
-    def __init__(self, head_dim: int, aspect: Sequence[float]):
+    def __init__(self, head_dim: int):
         super().__init__()
         self.dim = head_dim
-        self.aspect = aspect
         inv_freq = 1. / torch.logspace(1.0, 100.0, self.dim // 2)
         self.register_buffer('inv_freq', inv_freq)
         
@@ -102,19 +101,21 @@ class Block(nn.Module):
         return x
 
 class Encoder(nn.Module):
-    def __init__(self, depth: int, compression: Sequence[int]):
+    def __init__(self, depth: int, rank: int, compression: Sequence[int]):
         assert len(compression) <= 3, "Only inputs up to 3D are supported"
         super().__init__()
-        self.depth = depth
+        scales = [compression for depth in range(depth)] # This will not work. Need a strategy
+        self.net = nn.Sequential([Residual([Block(8, 64, scale, axis=j) for j in range(rank)]) for (i, scale) in enumerate(scales)])
 
     def forward(self, x):
-        pass
+        return self.net(x)
 
 class Decoder(nn.Module):
-    def __init__(self, depth: int, decompression: Sequence[int]):
+    def __init__(self, depth: int, rank: int, decompression: Sequence[int]):
         assert len(decompression) <= 3, "Only outputs up to 3D are supported"
         super().__init__()
-        self.depth = depth
+        scales = [decompression for depth in range(depth)] # This will not work. Need a strategy
+        self.net = nn.Sequential([Residual([Block(8, 64, scale, axis=j) for j in range(rank)]) for (i, scale) in enumerate(scales)])
 
     def forward(self, x):
-        pass
+        return self.net(x)

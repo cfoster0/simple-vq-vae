@@ -6,7 +6,10 @@ from typing import Sequence, Optional, Tuple, Any
 from einops import rearrange, repeat, reduce
 
 class Quantize(nn.Module):
-    def __init__(self):
+    def __init__(self, codes: int, dim: int):
+        self.norm = nn.LayerNorm(dim)
+        self.embedding = torch.zeros(dim, codes)
+        nn.init.orthogonal_(self.embedding)
         pass
 
     def forward(self, x):
@@ -82,6 +85,7 @@ class Decoder(nn.Module):
     def __init__(self, depth: int, decompression: Sequence[int]):
         assert len(decompression) <= 3, "Only outputs up to 3D are supported"
         self.depth = depth
+        
         pass
 
     def forward(self, x):

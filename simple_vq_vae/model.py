@@ -22,7 +22,7 @@ class Quantization(nn.Module):
         distances = flattened.pow(2).sum(1, keepdim=True)
             - 2 * flattened @ self.embedding.T
             + self.embedding.pow(2).sum(1, keepdim=True).T
-        indices = F.gumbel_softmax(-distances, -1, tau=self.temperature, hard=True)
+        indices = F.gumbel_softmax(-distances, tau=self.temperature, hard=True, dim=-1)
         if return_codes:
             return indices.reshape(x.shape[:-1])
         onehot = F.onehot(indices, self.codes)

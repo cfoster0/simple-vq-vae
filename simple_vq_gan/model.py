@@ -45,17 +45,31 @@ class Residual(nn.Module):
         return x + sum(fn(x) for fn in self.fns)
 
 class Rotary(nn.Module):
-    def __init__(self):
+    def __init__(self, head_dim: int, aspect: Sequence[float]):
         super().__init__()
+        self.dim = head_dim
+        self.aspect = aspect
+        inv_freq = 1. / torch.logspace(1.0, 100.0, self.dim // 2)
+        self.register_buffer('inv_freq', inv_freq)
+        
+    def rotate_half(self, x):
+        x = rearrange(x, '... (j d) -> ... j d', j = 2)
+        x1, x2 = x.unbind(dim = -2)
+        return torch.cat((-x2, x1), dim = -1)
 
     def forward(self, x):
-        pass
+        l = x.shape[-2]
+        t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
+        freqs = einsum('i , j -> i j', t, self.inv_freq)
+        posemb = torch.cat((freqs, freqs), dim=-1)
+        posemb = rearrange(posemb, 'n d -> () n () d')
+        return (x * posemb.cos()) + (self.rotate_half(x) * posemb.sin())
 
 class Block(nn.Module):
-    def __init__(self, rank: int, compression: Sequence[int], axis: int = 1):
+    def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[int], axis: int = 1):
         super().__init__()
-        self.heads = config.heads
-        self.head_dim = config.head_dim
+        self.heads = heads
+        self.head_dim = head_dim
         self.hidden_dim = self.heads * self.head_dim
         self.rank = rank
         self.compression = compression

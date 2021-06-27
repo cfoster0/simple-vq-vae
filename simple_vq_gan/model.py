@@ -7,13 +7,25 @@ from einops import rearrange, repeat, reduce
 
 class Quantize(nn.Module):
     def __init__(self, codes: int, dim: int):
-        self.norm = nn.LayerNorm(dim)
-        self.embedding = torch.zeros(codes, dim)
+        self.codes = codes
+        self.dim = dim
+
+        self.norm = nn.LayerNorm(self.dim)
+        self.embedding = torch.zeros(self.codes, self.dim)
         nn.init.orthogonal_(self.embedding)
         pass
 
     def forward(self, x):
-        pass
+        flattened = x.reshape(-1, self.dim)
+        distances = flattened.pow(2).sum(1, keepdim=True)
+            - 2 * flattened @ self.embedding.T
+            + self.embedding.pow(2).sum(1, keepdim=True)
+        indices = F.gumbel_softmax(-distances, -1, hard=True)
+        onehot = F.onehot(indices, self.codes)
+        onehot = onehot.reshape(x.shape[:-1], + (self.codes))
+        quantized = F.embedding(indices, self.embedding)
+        quantized = quantized.reshape(x.shape[:-1] + (self.dim))
+        return quantized
 
 class Residual(nn.Module):
     def __init__(self, residuals: Sequential[Any]):

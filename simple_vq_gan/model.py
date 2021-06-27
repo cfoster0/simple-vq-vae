@@ -16,6 +16,7 @@ class Quantize(nn.Module):
         pass
 
     def forward(self, x):
+        x = self.norm(x)
         flattened = x.reshape(-1, self.dim)
         distances = flattened.pow(2).sum(1, keepdim=True)
             - 2 * flattened @ self.embedding.T

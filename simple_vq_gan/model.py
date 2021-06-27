@@ -20,7 +20,7 @@ class Quantize(nn.Module):
         flattened = x.reshape(-1, self.dim)
         distances = flattened.pow(2).sum(1, keepdim=True)
             - 2 * flattened @ self.embedding.T
-            + self.embedding.pow(2).sum(1, keepdim=True)
+            + self.embedding.pow(2).sum(1, keepdim=True).T
         indices = F.gumbel_softmax(-distances, -1, hard=True)
         onehot = F.onehot(indices, self.codes)
         onehot = onehot.reshape(x.shape[:-1] + (self.codes,))

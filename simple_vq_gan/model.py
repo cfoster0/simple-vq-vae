@@ -5,8 +5,9 @@ import torch.nn.functional as F
 from typing import Sequence, Optional, Tuple, Any
 from einops import rearrange, repeat, reduce
 
-class Quantize(nn.Module):
+class Quantization(nn.Module):
     def __init__(self, codes: int, dim: int):
+        super().__init__()
         self.codes = codes
         self.dim = dim
 
@@ -37,7 +38,7 @@ class Residual(nn.Module):
         In the constructor we stash way the modules that'll be called along
         the residual branch. This is just for convenience.
         """
-        super(Residual, self).__init__()
+        super().__init__()
         self.residuals = residuals
 
     def forward(self, x):
@@ -45,14 +46,14 @@ class Residual(nn.Module):
 
 class Rotary(nn.Module):
     def __init__(self):
-        pass
+        super().__init__()
 
     def forward(self, x):
         pass
 
 class Block(nn.Module):
     def __init__(self, rank: int, compression: Sequence[int], axis: int = 1):
-        super(Block, self).__init__()
+        super().__init__()
         self.heads = config.heads
         self.head_dim = config.head_dim
         self.hidden_dim = self.heads * self.head_dim
@@ -65,7 +66,6 @@ class Block(nn.Module):
         self.rotary = Rotary()
 
     def forward(self, x):
-        # This function needs some work to make it agnostic to dimension
         x = self.ln(x)
         x = self.in_proj(x)
         q, k, v, p = torch.split(x, [
@@ -91,8 +91,8 @@ class Block(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, depth: int, compression: Sequence[int]):
         assert len(compression) <= 3, "Only inputs up to 3D are supported"
+        super().__init__()
         self.depth = depth
-        pass
 
     def forward(self, x):
         pass
@@ -100,9 +100,8 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, depth: int, decompression: Sequence[int]):
         assert len(decompression) <= 3, "Only outputs up to 3D are supported"
+        super().__init__()
         self.depth = depth
-        
-        pass
 
     def forward(self, x):
         pass

@@ -60,9 +60,8 @@ class Rotary(nn.Module):
     def forward(self, x):
         l = x.shape[-2]
         t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
-        freqs = einsum('i , j -> i j', t, self.inv_freq)
-        posemb = torch.cat((freqs, freqs), dim=-1)
-        posemb = rearrange(posemb, 'n d -> () n () d')
+        freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
+        posemb = rearrange(torch.cat((freqs, freqs), dim=-1), 'n d -> () n () d')
         return (x * posemb.cos()) + (self.rotate_half(x) * posemb.sin())
 
 class Block(nn.Module):

@@ -15,7 +15,6 @@ class Quantization(nn.Module):
         self.norm = nn.LayerNorm(self.dim)
         self.embedding = torch.zeros(self.codes, self.dim)
         nn.init.orthogonal_(self.embedding)
-        pass
 
     def forward(self, x, return_codes=False):
         x = self.norm(x)
@@ -45,21 +44,19 @@ class Residual(nn.Module):
         return x + sum(fn(x) for fn in self.fns)
 
 class Rotary(nn.Module):
-    def __init__(self, head_dim: int):
+    def __init__(self, dim: int):
         super().__init__()
-        self.dim = head_dim
+        self.dim = dim
         inv_freq = 1. / torch.logspace(1.0, 100.0, self.dim // 2)
         self.register_buffer('inv_freq', inv_freq)
         
     def forward(self, x):
-        l = x.shape[-3] # [... sequence, head, dim]
-        t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
+        n = x.shape[-3] # [... sequence, head, dim]
+        t = torch.linspace(-1, 1, n).type_as(self.inv_freq)
         freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
-        posemb = repeat(freqs, "n c -> () n () 2 c")
-        
+        posemb = repeat(freqs, "n c -> () n () (2 c)")
         odds, evens = rearrange(x, '... (j c) -> ... j c', j = 2).unbind(dim = -2)
         rotated = torch.cat((-evens, odds), dim = -1)
-
         return (x * posemb.cos()) + (rotated * posemb.sin())
 
 class Block(nn.Module):
@@ -74,7 +71,7 @@ class Block(nn.Module):
         self.ln = nn.LayerNorm(self.hidden_dim)
         self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 7, False)
         self.out_proj = nn.Linear(self.hidden_dim * 5, self.hidden_dim, True)
-        self.rotary = Rotary()
+        self.rotary = Rotary(self.head_dim)
 
     def forward(self, x):
         x = self.ln(x)

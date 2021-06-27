@@ -32,16 +32,30 @@ class Quantization(nn.Module):
         return quantized
 
 class Residual(nn.Module):
+    def __init__(self, fn):
+        """
+        In the constructor we stash way the module that'll be called along
+        the residual branch. This is just for convenience.
+        """
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, x):
+        return x + self.fn(x)
+
+class Parallel(nn.Module):
     def __init__(self, fns: Sequential[Any]):
         """
-        In the constructor we stash way the modules that'll be called along
-        the residual branch. This is just for convenience.
+        In the constructor we stash way the modules that'll be called
+        in parallel. This is just for convenience.
         """
         super().__init__()
         self.fns = fns
 
     def forward(self, x):
-        return x + sum(fn(x) for fn in self.fns)
+        return [fn(x) for fn in self.fns]
+
+
 
 class Rotary(nn.Module):
     def __init__(self, dim: int):
@@ -103,7 +117,7 @@ class Encoder(nn.Module):
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Parallel([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)
@@ -114,7 +128,7 @@ class Decoder(nn.Module):
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Residual([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Parallel([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)

@@ -67,8 +67,7 @@ class Block(nn.Module):
         return x
 
 class Encoder(nn.Module):
-    def __init__(self, depth: int,
-compression: Sequence[int]):
+    def __init__(self, depth: int, compression: Sequence[int]):
         assert len(compression) <= 3, "Only inputs up to 3D are supported"
         self.depth = depth
         pass
@@ -77,8 +76,7 @@ compression: Sequence[int]):
         pass
 
 class Decoder(nn.Module):
-    def __init__(self, depth: int,
-decompression: Sequence[int]):
+    def __init__(self, depth: int, decompression: Sequence[int]):
         assert len(decompression) <= 3, "Only outputs up to 3D are supported"
         self.depth = depth
         pass

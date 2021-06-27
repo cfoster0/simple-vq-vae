@@ -23,9 +23,9 @@ class Quantize(nn.Module):
             + self.embedding.pow(2).sum(1, keepdim=True)
         indices = F.gumbel_softmax(-distances, -1, hard=True)
         onehot = F.onehot(indices, self.codes)
-        onehot = onehot.reshape(x.shape[:-1], + (self.codes))
+        onehot = onehot.reshape(x.shape[:-1] + (self.codes,))
         quantized = F.embedding(indices, self.embedding)
-        quantized = quantized.reshape(x.shape[:-1] + (self.dim))
+        quantized = quantized.reshape(x.shape)
         return quantized
 
 class Residual(nn.Module):

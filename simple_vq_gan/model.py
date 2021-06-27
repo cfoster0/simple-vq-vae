@@ -10,18 +10,21 @@ class Quantize(nn.Module):
         self.codes = codes
         self.dim = dim
 
+        self.temperature = 1.0
         self.norm = nn.LayerNorm(self.dim)
         self.embedding = torch.zeros(self.codes, self.dim)
         nn.init.orthogonal_(self.embedding)
         pass
 
-    def forward(self, x):
+    def forward(self, x, return_codes=False):
         x = self.norm(x)
         flattened = x.reshape(-1, self.dim)
         distances = flattened.pow(2).sum(1, keepdim=True)
             - 2 * flattened @ self.embedding.T
             + self.embedding.pow(2).sum(1, keepdim=True).T
-        indices = F.gumbel_softmax(-distances, -1, hard=True)
+        indices = F.gumbel_softmax(-distances, -1, tau=self.temperature, hard=True)
+        if return_codes:
+            return indices.reshape(x.shape[:-1])
         onehot = F.onehot(indices, self.codes)
         onehot = onehot.reshape(x.shape[:-1] + (self.codes,))
         quantized = F.embedding(indices, self.embedding)

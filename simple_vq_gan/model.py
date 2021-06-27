@@ -52,7 +52,7 @@ class Rotary(nn.Module):
         self.register_buffer('inv_freq', inv_freq)
         
     def forward(self, x):
-        l = x.shape[-2]
+        l = x.shape[-3] # [... sequence, head, dim]
         t = torch.linspace(-1, 1, l).type_as(self.inv_freq)
         freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
         posemb = rearrange(torch.cat((freqs, freqs), dim=-1), 'n d -> () n () d')

@@ -55,7 +55,7 @@ class Block(nn.Module):
                                    self.hidden_dim,
                                    self.hidden_dim * 4,
                                    ], -1)
-        (k, v) = map(lambda x: F.interpolate(x, scale_factor=self.compression, mode='linear'), (k, v))
+        (k, v, p) = map(lambda x: F.interpolate(x, scale_factor=self.compression, mode='linear'), (k, v, p))
         (q, k, v) = map(lambda x: x.transpose(self.axis, -2), (q, k, v))
         (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
         (q, k) = map(lambda x: self.rotary(x), (q, k))

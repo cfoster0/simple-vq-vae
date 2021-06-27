@@ -8,7 +8,7 @@ from einops import rearrange, repeat, reduce
 class Quantize(nn.Module):
     def __init__(self, codes: int, dim: int):
         self.norm = nn.LayerNorm(dim)
-        self.embedding = torch.zeros(dim, codes)
+        self.embedding = torch.zeros(codes, dim)
         nn.init.orthogonal_(self.embedding)
         pass
 

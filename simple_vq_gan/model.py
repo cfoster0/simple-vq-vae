@@ -41,18 +41,19 @@ class Block(nn.Module):
         self.compression = compression
 
         self.ln = nn.LayerNorm(self.hidden_dim)
-        self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 3, False)
-        self.out_proj = nn.Linear(self.hidden_dim, self.hidden_dim, True)
+        self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 7, False)
+        self.out_proj = nn.Linear(self.hidden_dim * 5, self.hidden_dim, True)
         self.rotary = Rotary()
 
     def forward(self, x):
         # This function needs some work to make it agnostic to dimension
         x = self.ln(x)
         x = self.in_proj(x)
-        q, k, v = torch.split(x, [
+        q, k, v, p = torch.split(x, [
                                    self.hidden_dim,
                                    self.hidden_dim,
                                    self.hidden_dim,
+                                   self.hidden_dim * 4,
                                    ], -1)
         (k, v) = map(lambda x: F.interpolate(x, scale_factor=self.compression, mode='linear'), (k, v))
         (q, k, v) = map(lambda x: x.transpose(self.axis, -2), (q, k, v))
@@ -63,6 +64,8 @@ class Block(nn.Module):
         o = einsum("... h i j, ... j h d -> ... i h d", a, v)
         o = rearrange(o, "... h d -> ... (h d)")
         o = o.transpose(self.axis, -2)
+        p = F.gelu(p)
+        o = torch.cat([o, p], -1)
         x = self.out_proj(o)
         return x
 

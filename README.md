@@ -1,2 +1,2 @@
-# simple-vq-gan
-Pedagogical codebase for a simplified VQGAN
+# simple-vq-vae
+Pedagogical codebase for a simplified VQ-VAE based on attention and linear interpolation

@@ -46,8 +46,7 @@ class Residual(nn.Module):
 class Rotary(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
-        self.dim = dim
-        inv_freq = 1. / torch.logspace(1.0, 100.0, self.dim // 2)
+        inv_freq = 1. / torch.logspace(1.0, 100.0, dim // 2)
         self.register_buffer('inv_freq', inv_freq)
         
     def forward(self, x):
@@ -55,9 +54,11 @@ class Rotary(nn.Module):
         t = torch.linspace(-1, 1, n).type_as(self.inv_freq)
         freqs = einsum('n , c -> n c', t, self.inv_freq) # c = d / 2
         posemb = repeat(freqs, "n c -> () n () (2 c)")
+        out = x * posemb.cos()
         odds, evens = rearrange(x, '... (j c) -> ... j c', j = 2).unbind(dim = -2)
         rotated = torch.cat((-evens, odds), dim = -1)
-        return (x * posemb.cos()) + (rotated * posemb.sin())
+        out += rotated * posemb.sin()
+        return out
 
 class Block(nn.Module):
     def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[int], axis: int = 1):

@@ -60,7 +60,7 @@ class Rotary(nn.Module):
         out += rotated * posemb.sin()
         return out
 
-class Compression(nn.Module):
+class Pool(nn.Module):
     def __init__(self, compression: Sequence[float]):
         super().__init__()
         self.compression = compression
@@ -69,7 +69,7 @@ class Compression(nn.Module):
         x = F.interpolate(x, scale_factor=self.compression, mode='linear')
         return x
 
-class AttentionCompression(nn.Module):
+class TransformerPool(nn.Module):
     def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[float], axis: int = 1):
         super().__init__()
         self.heads = heads
@@ -110,8 +110,8 @@ class Block(nn.Module):
     def __init__(self, rank: int, compression: Sequence[float]):
         assert rank <= 3, "Only 1D, 2D, and 3D are supported"
         super().__init__()
-        branches = [AttentionCompression(8, 64, compression, axis=i) for i in range(rank)]
-        branches += [Compression(compression)]
+        branches = [TransformerPool(8, 64, compression, axis=i) for i in range(rank)]
+        branches += [Pool(compression)]
         self.branches = Parallel(branches)
 
     def forward(self, x):

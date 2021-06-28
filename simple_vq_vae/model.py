@@ -31,18 +31,6 @@ class Quantization(nn.Module):
         quantized = quantized.reshape(x.shape)
         return quantized
 
-class Residual(nn.Module):
-    def __init__(self, fn):
-        """
-        In the constructor we stash way the module that'll be called along
-        the residual branch. This is just for convenience.
-        """
-        super().__init__()
-        self.fn = fn
-
-    def forward(self, x):
-        return x + self.fn(x)
-
 class Parallel(nn.Module):
     def __init__(self, fns: Sequential[Any]):
         """

@@ -31,18 +31,6 @@ class Quantization(nn.Module):
         quantized = quantized.reshape(x.shape)
         return quantized
 
-class Parallel(nn.Module):
-    def __init__(self, fns: Sequential[Any]):
-        """
-        In the constructor we stash way the modules that'll be called
-        in parallel. This is just for convenience.
-        """
-        super().__init__()
-        self.fns = nn.ModuleList(fns)
-
-    def forward(self, x):
-        return [fn(x) for fn in self.fns]
-
 class Rotary(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
@@ -70,13 +58,14 @@ class Pool(nn.Module):
         return x
 
 class TransformerPool(nn.Module):
-    def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[float], axis: int = 1):
+    def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[float], attn_axis: int = 1):
         super().__init__()
         self.heads = heads
         self.head_dim = head_dim
         self.hidden_dim = self.heads * self.head_dim
         self.rank = rank
         self.compression = compression
+        self.attn_axis = attn_axis
 
         self.ln = nn.LayerNorm(self.hidden_dim)
         self.in_proj = nn.Linear(self.hidden_dim, self.hidden_dim * 7, False)
@@ -93,25 +82,37 @@ class TransformerPool(nn.Module):
                                    self.hidden_dim * 4,
                                    ], -1)
         (q, p) = map(lambda x: F.interpolate(x, scale_factor=self.compression, mode='linear'), (q, p))
-        (q, k, v) = map(lambda x: x.transpose(self.axis, -2), (q, k, v))
+        (q, k, v) = map(lambda x: x.transpose(self.attn_axis, -2), (q, k, v))
         (q, k, v) = map(lambda x: rearrange(x, "... (h d) -> ... h d", h=self.heads), (q, k, v))
         (q, k) = map(lambda x: self.rotary(x), (q, k))
         a = einsum("... i h d, ... j h d -> ... h i j", q, k) * (self.head_dim ** -0.5)
         a = F.softmax(a, dim=-1)
         o = einsum("... h i j, ... j h d -> ... i h d", a, v)
         o = rearrange(o, "... h d -> ... (h d)")
-        o = o.transpose(self.axis, -2)
+        o = o.transpose(self.attn_axis, -2)
         p = F.gelu(p)
         o = torch.cat([o, p], -1)
         x = self.out_proj(o)
         return x
 
+class Parallel(nn.Module):
+    def __init__(self, fns: Sequential[Any]):
+        """
+        In the constructor we stash way the modules that'll be called
+        in parallel. This is just for convenience.
+        """
+        super().__init__()
+        self.fns = nn.ModuleList(fns)
+
+    def forward(self, x):
+        return [fn(x) for fn in self.fns]
+
 class Block(nn.Module):
     def __init__(self, rank: int, compression: Sequence[float]):
         assert rank <= 3, "Only 1D, 2D, and 3D are supported"
         super().__init__()
-        branches = [TransformerPool(8, 64, compression, axis=i) for i in range(rank)]
-        branches += [Pool(compression)]
+        branches = [Pool(compression)]
+        branches += [TransformerPool(8, 64, compression, attn_axis=i+1) for i in range(rank)]
         self.branches = Parallel(branches)
 
     def forward(self, x):
@@ -123,7 +124,7 @@ class Encoder(nn.Module):
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Block(rank, compression) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Block(rank, compression) for compression in compressions])
 
     def forward(self, x):
         return self.net(x)
@@ -134,7 +135,7 @@ class Decoder(nn.Module):
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Block(rank, compression) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Block(rank, compression) for compression in compressions])
 
     def forward(self, x):
         return self.net(x)

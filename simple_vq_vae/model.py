@@ -50,7 +50,7 @@ class Parallel(nn.Module):
         in parallel. This is just for convenience.
         """
         super().__init__()
-        self.fns = fns
+        self.fns = nn.ModuleList(fns)
 
     def forward(self, x):
         return [fn(x) for fn in self.fns]
@@ -72,7 +72,17 @@ class Rotary(nn.Module):
         out += rotated * posemb.sin()
         return out
 
-class Block(nn.Module):
+class Compression(nn.Module):
+    def __init__(self, compression: Sequence[float]):
+        super().__init__()
+        
+        self.compression = compression
+
+    def forward(self, x):
+        x = F.interpolate(x, scale_factor=self.compression, mode='linear')
+        return x
+
+class AttentionCompression(nn.Module):
     def __init__(self, heads: int, head_dim: int, rank: int, compression: Sequence[float], axis: int = 1):
         super().__init__()
         self.heads = heads
@@ -109,13 +119,24 @@ class Block(nn.Module):
         x = self.out_proj(o)
         return x
 
+class Block(nn.Module):
+    def __init__(self, rank: int, compression: Sequence[float]):
+        assert rank <= 3, "Only 1D, 2D, and 3D are supported"
+        super().__init__()
+        branches = [AttentionCompression(8, 64, compression, axis=i) for i in range(rank)]
+        branches += [Compression(compression)]
+        self.branches = Parallel(branches)
+
+    def forward(self, x):
+        return sum(self.branches(x))
+
 class Encoder(nn.Module):
     def __init__(self, rank: int, sizes: Sequence[Sequence[int]]):
         assert rank <= 3, "Only 1D, 2D, and 3D are supported"
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Parallel([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Block(rank, compression) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)
@@ -126,7 +147,7 @@ class Decoder(nn.Module):
         assert all([len(size) == rank for size in sizes]), "Must maintain constant rank"
         super().__init__()
         compressions = [map(lambda a, b: a / b, x) for x in zip(sizes, sizes[1:])] 
-        self.net = nn.Sequential([Parallel([Block(8, 64, compression, axis=j) for j in range(rank)]) for (i, compression) in enumerate(compressions)])
+        self.net = nn.Sequential([Block(rank, compression) for (i, compression) in enumerate(compressions)])
 
     def forward(self, x):
         return self.net(x)

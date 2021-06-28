@@ -55,8 +55,6 @@ class Parallel(nn.Module):
     def forward(self, x):
         return [fn(x) for fn in self.fns]
 
-
-
 class Rotary(nn.Module):
     def __init__(self, dim: int):
         super().__init__()

@@ -63,7 +63,6 @@ class Rotary(nn.Module):
 class Compression(nn.Module):
     def __init__(self, compression: Sequence[float]):
         super().__init__()
-        
         self.compression = compression
 
     def forward(self, x):
